@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
-
+ 
 
 var mongoConn *mongo.Client
 
@@ -26,12 +26,32 @@ type User struct {
 	UpdatedAt   	time.Time       `bson:"updated_at"`
 }
 
-type Users []Users
+type Users []*User
+
+func QueryUsers(client *mongo.Client, filter bson.M) []*User {
+    var users Users
+    collection := client.Database(os.Getenv("MONGODB_DATABASE")).Collection("users")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+    cur, err := collection.Find(ctx, filter)
+    if err != nil {
+        log.Fatal("Error retrieving documents", err)
+    }
+
+    for cur.Next(ctx) {
+        var user User
+        err = cur.Decode(&user)
+        if err != nil {
+            log.Fatal("Error decoding document", err)
+        }
+        users = append(users, &user)
+    }
+    return users
+}
 
 // DB connection
 func createConnection() (*mongo.Client, error) {
-	fmt.Println(os.Getenv("MONGODB_USERNAME"))
-
 	credential := options.Credential{
 	   AuthMechanism: "SCRAM-SHA-1",
 	   Username:      os.Getenv("MONGODB_USERNAME"), // mongodb user
@@ -97,49 +117,13 @@ func StartService(client *mongo.Client) {
 
 	// Users List
 	router.GET("/users", func(c *gin.Context) {
-		// users := Users{}
-
-		collection := client.Database("gonews_users").Collection("users")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		cur, err := collection.Find(ctx, bson.D{})
-		if err != nil { 
-			fmt.Println("Connecting to database...")
-			log.Fatal(err) 
-		}
-
-		defer cur.Close(ctx)
-		for cur.Next(ctx) {
-			var result bson.D
-			err := cur.Decode(&result)
-			if err != nil { log.Fatal(err) }
-			// do something with result....
-		}
-		if err := cur.Err(); err != nil {
-			log.Fatal(err)
-		}
-
-		// session := connect()
-		// defer session.Close()
-		// err := session.DB(database).C(collection).Find(bson.M{}).All(&users)
-
-		// if err != nil {
-		// 	c.JSON(
-		// 		http.StatusNotFound,
-		// 		gin.H{
-		// 			"status": "failed",
-		// 			"message": "error getting users",
-		// 		})
-		// 	return
-		// }
+		users := QueryUsers(client, bson.M{})
 
 		c.JSON(
 			http.StatusOK, 
 			gin.H{
 				"status": "success", 
-				"users": collection,
+				"users": users,
 			},
 		)
 	})
