@@ -23,7 +23,8 @@ type User struct {
 
 type Users []*User
 
-func DbQueryUsers(client *mongo.Client, filter bson.M) Users {
+// Returns all users in the database with the matching filter
+func DbQueryUsers(client *mongo.Client, filter bson.M) (Users, error, int) {
 	var users Users
 	collection := client.Database(os.Getenv("MONGODB_DATABASE")).Collection("users")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -32,19 +33,26 @@ func DbQueryUsers(client *mongo.Client, filter bson.M) Users {
 	cur, err := collection.Find(ctx, filter)
 	if err != nil {
 		log.Fatal("Error retrieving documents", err)
+		return nil, err, 0
 	}
+
+	var outerror error
+	count := 0
 
 	for cur.Next(ctx) {
 		var user User
+		count += 1
 		err = cur.Decode(&user)
 		if err != nil {
 			log.Fatal("Error decoding document", err)
+			outerror = err
 		}
 		users = append(users, &user)
 	}
-	return users
+	return users, outerror, count
 }
 
+// DbCreateUser creates a user in the database with the given user data
 func DbInsertUser(client *mongo.Client, user User) (interface{}, error) {
 	collection := client.Database(os.Getenv("MONGODB_DATABASE")).Collection("users")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -69,6 +77,7 @@ func DbInsertUser(client *mongo.Client, user User) (interface{}, error) {
 	return res.InsertedID, nil
 }
 
+// DbUpdateUser updates a user from the database with the given filter and new user data
 func DbUpdateUser(client *mongo.Client, filter bson.M, newUser User) (interface{}, error) {
 	collection := client.Database(os.Getenv("MONGODB_DATABASE")).Collection("users")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

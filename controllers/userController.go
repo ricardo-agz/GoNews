@@ -11,7 +11,6 @@ import (
 )
 
 func CreateUser(c *gin.Context, dbClient *mongo.Client) {
-	// body, _ := ioutil.ReadAll(c.Request.Body)
 	user := models.User{}
 
 	// Bind the request body to the User struct
@@ -71,7 +70,7 @@ func UpdateUser(c *gin.Context, dbClient *mongo.Client, username string) {
 		})
 }
 
-// DeleteUser deletes a user from the database with the given ID
+// DeleteUser deletes a user from the database with the given username
 func DeleteUser(c *gin.Context, dbClient *mongo.Client, username string) {
 	// Create a filter to find the user by ID
 	filter := bson.M{"username": username}
@@ -92,24 +91,38 @@ func DeleteUser(c *gin.Context, dbClient *mongo.Client, username string) {
 		})
 }
 
+// Returns all users
 func ReadUsers(c *gin.Context, dbClient *mongo.Client) {
-	users := models.DbQueryUsers(dbClient, bson.M{})
+	users, err, count := models.DbQueryUsers(dbClient, bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(
 		http.StatusOK,
 		gin.H{
 			"status":  "success",
 			"message": "successfully retrieved users",
+			"count":   count,
 			"users":   users,
 		},
 	)
 }
 
+// Returns user with specified ID
 func ReadSingleUser(c *gin.Context, dbClient *mongo.Client, username string) {
 	// Create a filter to find the user by ID
 	filter := bson.M{"username": username}
 
-	user := models.DbQueryUsers(dbClient, filter)
+	user, err, count := models.DbQueryUsers(dbClient, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	} else if count == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User does not exist"})
+		return
+	}
 
 	c.JSON(
 		http.StatusOK,
