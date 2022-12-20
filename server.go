@@ -28,6 +28,17 @@ func StartService(dbClient *mongo.Client) {
 		})
 	})
 
+	// Users List
+	router.GET("/users", func(c *gin.Context) {
+		controllers.ReadUsers(c, dbClient)
+	})
+
+	// Get Single User
+	router.GET("/users/:username", func(c *gin.Context) {
+		username := c.Param("username")
+		controllers.ReadSingleUser(c, dbClient, username)
+	})
+
 	// User Create
 	router.POST("/users", func(c *gin.Context) {
 		controllers.CreateUser(c, dbClient)
@@ -41,14 +52,8 @@ func StartService(dbClient *mongo.Client) {
 
 	// User Delete
 	router.DELETE("/users/:username", func(c *gin.Context) {
-		// Get the ID from the URL parameters
 		username := c.Param("username")
 		controllers.DeleteUser(c, dbClient, username)
-	})
-
-	// Users List
-	router.GET("/users", func(c *gin.Context) {
-		controllers.ReadUsers(c, dbClient)
 	})
 
 	// 404 Not found

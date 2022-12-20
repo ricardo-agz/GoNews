@@ -104,3 +104,19 @@ func ReadUsers(c *gin.Context, dbClient *mongo.Client) {
 		},
 	)
 }
+
+func ReadSingleUser(c *gin.Context, dbClient *mongo.Client, username string) {
+	// Create a filter to find the user by ID
+	filter := bson.M{"username": username}
+
+	user := models.DbQueryUsers(dbClient, filter)
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"status":  "success",
+			"message": "successfully retrieved user",
+			"user":    user,
+		},
+	)
+}
