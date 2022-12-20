@@ -11,26 +11,84 @@ import (
 )
 
 func CreateUser(c *gin.Context, dbClient *mongo.Client) {
+	// body, _ := ioutil.ReadAll(c.Request.Body)
 	user := models.User{}
-	err := c.Bind(&user)
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest,
-			gin.H{
-				"status":  "failed",
-				"message": "invalid request body",
-			})
+	// Bind the request body to the User struct
+	if err := c.ShouldBindJSON(&user); err != nil {
+		// If there is an error, return a Bad Request response
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	user.CreatedAt, user.UpdatedAt = time.Now(), time.Now()
-	dbUser := models.DbInsertUser(dbClient, user)
+	dbUser, err := models.DbInsertUser(dbClient, user)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK,
 		gin.H{
-			"status": "success",
-			"user":   &user,
-			"res":    dbUser,
+			"status":  "success",
+			"message": "successfully created user",
+			"user":    &user,
+			"res":     dbUser,
+		})
+}
+
+func UpdateUser(c *gin.Context, dbClient *mongo.Client, username string) {
+	user := models.User{}
+
+	// Bind the request body to the User struct
+	if err := c.ShouldBindJSON(&user); err != nil {
+		// If there is an error, return a Bad Request response
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update the updated_at field
+	user.UpdatedAt = time.Now()
+
+	// Create a filter to find the user by username
+	filter := bson.M{"username": username}
+
+	// Update the user in the database
+	updateResult, err := models.DbUpdateUser(dbClient, filter, user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Return a success response
+	c.JSON(http.StatusOK,
+		gin.H{
+			"status":  "success",
+			"message": "successfully updated user",
+			"user":    &user,
+			"res":     updateResult,
+		})
+}
+
+// DeleteUser deletes a user from the database with the given ID
+func DeleteUser(c *gin.Context, dbClient *mongo.Client, username string) {
+	// Create a filter to find the user by ID
+	filter := bson.M{"username": username}
+
+	// Delete the user from the database
+	deleteResult, err := models.DbDeleteUser(dbClient, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Return a success response
+	c.JSON(http.StatusOK,
+		gin.H{
+			"status":  "success",
+			"message": "successfully deleted user",
+			"res":     deleteResult,
 		})
 }
 
@@ -40,8 +98,9 @@ func ReadUsers(c *gin.Context, dbClient *mongo.Client) {
 	c.JSON(
 		http.StatusOK,
 		gin.H{
-			"status": "success",
-			"users":  users,
+			"status":  "success",
+			"message": "successfully retrieved users",
+			"users":   users,
 		},
 	)
 }

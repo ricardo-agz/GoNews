@@ -33,6 +33,19 @@ func StartService(dbClient *mongo.Client) {
 		controllers.CreateUser(c, dbClient)
 	})
 
+	// User Update
+	router.PUT("/users/:username", func(c *gin.Context) {
+		username := c.Param("username")
+		controllers.UpdateUser(c, dbClient, username)
+	})
+
+	// User Delete
+	router.DELETE("/users/:username", func(c *gin.Context) {
+		// Get the ID from the URL parameters
+		username := c.Param("username")
+		controllers.DeleteUser(c, dbClient, username)
+	})
+
 	// Users List
 	router.GET("/users", func(c *gin.Context) {
 		controllers.ReadUsers(c, dbClient)
@@ -40,7 +53,9 @@ func StartService(dbClient *mongo.Client) {
 
 	// 404 Not found
 	router.NoRoute(func(c *gin.Context) {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Page not found:/",
+		})
 	})
 
 	router.Run(":8000")
