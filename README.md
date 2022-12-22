@@ -10,6 +10,43 @@ named 'somehashtag' will be created with an array of post IDs.
 
 --- 
 
+## ENV file
+This project requires a .env file, a sample .env is included below:
+```
+MONGODB_DATABASE=my-gonews-db-name
+MONGODB_USERNAME=your-mongodb-username
+MONGODB_PASSWORD=your-mongodb-password
+MONGODB_URL=mongodb+srv://....
+```
+
+--- 
+
+## Usage
+A sample request to create a user is included below:
+
+```POST http://localhost:8000/users```
+
+```
+{
+    "Username": "myusername",
+    "Email": "myusername@email.co",
+    "Password": "123456"
+}
+```
+
+
+A sample request to create a post is included below:
+
+```GET http://localhost:8000/users/myusername/posts```
+
+```
+{
+    "Content": "this is my post #mytag #anothertag"
+}
+```
+
+--- 
+
 ## API
 #### GET    /                       
 * Home page
