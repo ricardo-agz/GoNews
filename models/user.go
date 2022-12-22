@@ -13,12 +13,12 @@ import (
 )
 
 type User struct {
-	ID        primitive.ObjectID
-	Username  string    `bson:"username"`
-	Email     string    `bson:"email"`
-	Password  string    `bson:"password"`
-	CreatedAt time.Time `bson:"created_at"`
-	UpdatedAt time.Time `bson:"updated_at"`
+	ID        primitive.ObjectID `bson:"_id"`
+	Username  string             `bson:"username"`
+	Email     string             `bson:"email"`
+	Password  string             `bson:"password"`
+	CreatedAt time.Time          `bson:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at"`
 }
 
 type Users []*User
@@ -69,6 +69,9 @@ func DbInsertUser(client *mongo.Client, user User) (interface{}, error) {
 	if count > 0 {
 		return nil, fmt.Errorf("User with the same username already exists")
 	}
+
+	// Initialize user id
+	user.ID = primitive.NewObjectID()
 
 	res, err := collection.InsertOne(ctx, user)
 	if err != nil {

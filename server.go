@@ -56,6 +56,35 @@ func StartService(dbClient *mongo.Client) {
 		controllers.DeleteUser(c, dbClient, username)
 	})
 
+	// Read all posts
+	router.GET("/posts", func(c *gin.Context) {
+		controllers.ReadPosts(c, dbClient)
+	})
+
+	// Read all user posts
+	router.GET("/users/:username/posts", func(c *gin.Context) {
+		username := c.Param("username")
+		controllers.ReadUserPosts(c, dbClient, username)
+	})
+
+	// Read specific post
+	router.GET("/posts/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		controllers.ReadSinglePost(c, dbClient, id)
+	})
+
+	// Post Create
+	router.POST("/users/:username/posts", func(c *gin.Context) {
+		username := c.Param("username")
+		controllers.CreatePost(c, dbClient, username)
+	})
+
+	// Post Delete
+	router.DELETE("/users/:username/posts/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		controllers.DeletePost(c, dbClient, id)
+	})
+
 	// 404 Not found
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
