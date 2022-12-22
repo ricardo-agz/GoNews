@@ -61,6 +61,12 @@ func StartService(dbClient *mongo.Client) {
 		controllers.ReadPosts(c, dbClient)
 	})
 
+	// Read all posts with given hashtag
+	router.GET("/tags/:tag", func(c *gin.Context) {
+		tag := c.Param("tag")
+		controllers.ReadPostsByTag(c, dbClient, tag)
+	})
+
 	// Read all user posts
 	router.GET("/users/:username/posts", func(c *gin.Context) {
 		username := c.Param("username")

@@ -16,11 +16,38 @@ type Post struct {
 	ID        primitive.ObjectID `bson:"_id"`
 	Author    string             `bson:"author"`
 	Content   string             `bson:"content"`
+	Tags      []string           `bson:"tags"`
 	CreatedAt time.Time          `bson:"created_at"`
 	UpdatedAt time.Time          `bson:"updated_at"`
 }
 
 type Posts []*Post
+
+// Given a list of postIds, returns a list of post objects
+func DbDereferencePosts(dbClient *mongo.Client, postIds []primitive.ObjectID) ([]Post, error) {
+	postCollection := dbClient.Database(os.Getenv("MONGODB_DATABASE")).Collection("posts")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	postsCursor, err := postCollection.Find(ctx, bson.M{"_id": bson.M{"$in": postIds}})
+	if err != nil {
+		return nil, err
+	}
+
+	var posts []Post
+	for postsCursor.Next(ctx) {
+		var post Post
+		if err := postsCursor.Decode(&post); err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+	if err := postsCursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
 
 // Returns all posts in the database with the matching filter
 func DbQueryPosts(client *mongo.Client, filter bson.M) (Posts, error, int) {
@@ -72,6 +99,8 @@ func DbInsertPost(client *mongo.Client, post Post) (interface{}, error) {
 
 	// Initialize post id
 	post.ID = primitive.NewObjectID()
+
+	// Parse tags from content
 
 	res, err := postCollection.InsertOne(ctx, post)
 	if err != nil {

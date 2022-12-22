@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"gonews/models"
+	"gonews/services"
 	"net/http"
 	"time"
 
@@ -23,11 +24,34 @@ func CreatePost(c *gin.Context, dbClient *mongo.Client, username string) {
 
 	post.CreatedAt, post.UpdatedAt = time.Now(), time.Now()
 	post.Author = username
-	dbPost, err := models.DbInsertPost(dbClient, post)
 
+	// Parse hashtags from content
+	tags := services.ParseHashtags(post.Content)
+
+	// Iterate through tags and create them in the database if they don't already exist
+	for _, tag := range tags {
+		models.DbInsertTag(dbClient, tag)
+	}
+
+	post.Tags = tags
+
+	// Insert post to database
+	dbPost, err := models.DbInsertPost(dbClient, post)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Convert dbPost to a primitive.ObjectID
+	dbPostId := dbPost.(primitive.ObjectID)
+
+	// Iterate through tags and add the post ID to the tag
+	for _, tag := range tags {
+		err = models.DbAddPostToTag(dbClient, tag, dbPostId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK,
@@ -90,6 +114,51 @@ func ReadUserPosts(c *gin.Context, dbClient *mongo.Client, username string) {
 		return
 	} else if count == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Author does not exist"})
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"status":  "success",
+			"message": "successfully retrieved user posts",
+			"posts":   posts,
+		},
+	)
+}
+
+// Returns all posts with given hasthag
+func ReadPostsByTag(c *gin.Context, dbClient *mongo.Client, tag string) {
+	// Create a filter to find all posts with given author
+	filter := bson.M{"name": tag}
+
+	tags, err, count := models.DbQueryTags(dbClient, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	} else if count == 0 {
+		emptyPosts := []models.Post{}
+		c.JSON(
+			http.StatusOK,
+			gin.H{
+				"status":  "success",
+				"message": "this tag has no posts",
+				"posts":   emptyPosts,
+			},
+		)
+		return
+	}
+	tagObject := tags[0]
+
+	// Get all posts from tagObject.Posts
+	postIds := make([]primitive.ObjectID, 0, len(tagObject.Posts))
+	for _, id := range tagObject.Posts {
+		postIds = append(postIds, id)
+	}
+
+	posts, err := models.DbDereferencePosts(dbClient, postIds)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
